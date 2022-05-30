@@ -55,10 +55,14 @@ python bottom-up_features/tsv.py
 python create_input_files.py
 ```
 ## train
+* 모델을 훈련시킵니다.
+* 훈련에 필요한 데이터셋 경로, tokenizer 등과 같은 파라미터는 train.py 내에서 설정 가능합니다.
 ```bash
 python train.py
 ```
 ## eval
+* 모델을 평가합니다.
+* 평가에 필요한 파라미터는 eval.py에서 설정 가능합니다.
 ```bash
 python eval.py
 ```
