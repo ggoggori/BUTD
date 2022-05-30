@@ -54,17 +54,14 @@ python bottom-up_features/tsv.py
 ```bash
 python create_input_files.py
 ```
-<br>
 ## train
 ```bash
 python train.py
 ```
-<br>
 ## eval
 ```bash
 python eval.py
 ```
-<br>
 ## caption
 * 자신이 가지고 있는 이미지로, caption을 생성할 수 있습니다.
 ```bash
