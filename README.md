@@ -65,5 +65,5 @@ python eval.py
 ## caption
 * 자신이 가지고 있는 이미지로, caption을 생성할 수 있습니다.
 ```bash
-python caption.py --model /opt/ml/input/BUTD/checkpoint_5_cap_per_img.pth.tar --img /opt/ml/input/BUTD/sample_images/KakaoTalk_20220523_004637961.jpg
+python caption.py --model ./checkpoint_5_cap_per_img.pth.tar --img ./sample.jpg
 ```
