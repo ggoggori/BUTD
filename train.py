@@ -36,7 +36,9 @@ batch_size = 100
 workers = 1  # for data-loading; right now, only 1 works with h5py
 best_bleu4 = 0.0  # BLEU-4 score right now
 print_freq = 100  # print training/validation stats every __ batches
-checkpoint = "/opt/ml/input/BUTD/BEST_5checkpoint_5_cap_per_img.pth.tar"  # path to checkpoint, None if none
+checkpoint = (
+    "/opt/ml/input/BUTD/checkpoint_5_cap_per_img.pth.tar"  # path to checkpoint, None if none
+)
 
 
 def main():

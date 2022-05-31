@@ -1,3 +1,4 @@
+from lib2to3.pgen2 import token
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
@@ -7,13 +8,12 @@ from utils import *
 from nltk.translate.bleu_score import corpus_bleu
 import torch.nn.functional as F
 from tqdm import tqdm
-from nlgeval import NLGEval
 from transformers import AutoTokenizer
 
 # Parameters
 data_folder = "final_dataset"  # folder with data files saved by create_input_files.py
 data_name = "5_cap_per_img"  # base name shared by data files
-checkpoint_file = "/opt/ml/input/BUTD/BEST_5checkpoint_5_cap_per_img.pth.tar"  # model checkpoint
+checkpoint_file = "/opt/ml/input/BUTD/checkpoint_5_cap_per_img.pth.tar"  # model checkpoint
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )  # sets device for model and PyTorch tensors
@@ -25,8 +25,6 @@ checkpoint = torch.load(checkpoint_file, map_location=device)
 decoder = checkpoint["decoder"]
 decoder = decoder.to(device)
 decoder.eval()
-
-nlgeval = NLGEval()  # loads the evaluator
 
 # Load word map (word2ix)
 tokenizer = AutoTokenizer.from_pretrained("monologg/kobigbird-bert-base")
@@ -63,12 +61,14 @@ def evaluate(beam_size):
         k = beam_size
 
         # Move to GPU device, if available
-        image_features = image_features.to(device)  # (1, 3, 256, 256)
-        image_features_mean = image_features.mean(1)
+        image_features = image_features.to(device)
+        image_features_mean = image_features.mean(1).to(
+            device
+        )  # (batch_size, num_pixels, encoder_dim)
         image_features_mean = image_features_mean.expand(k, 2048)
 
         # Tensor to store top k previous words at each step; now they're just <start>
-        k_prev_words = torch.LongTensor([[word_map["<start>"]]] * k).to(device)  # (k, 1)
+        k_prev_words = torch.LongTensor([[tokenizer.cls_token_id]] * k).to(device)  # (k, 1)
 
         # Tensor to store top k sequences; now they're just <start>
         seqs = k_prev_words  # (k, 1)
@@ -111,7 +111,7 @@ def evaluate(beam_size):
                 top_k_scores, top_k_words = scores.view(-1).topk(k, 0, True, True)  # (s)
 
             # Convert unrolled indices to actual indices of scores
-            prev_word_inds = top_k_words / vocab_size  # (s)
+            prev_word_inds = torch.div(top_k_words, vocab_size, rounding_mode="trunc")  # (s)
             next_word_inds = top_k_words % vocab_size  # (s)
 
             # Add new words to sequences
@@ -123,7 +123,7 @@ def evaluate(beam_size):
             incomplete_inds = [
                 ind
                 for ind, next_word in enumerate(next_word_inds)
-                if next_word != word_map["<end>"]
+                if next_word != tokenizer.sep_token_id
             ]
             complete_inds = list(set(range(len(next_word_inds))) - set(incomplete_inds))
 
@@ -155,28 +155,25 @@ def evaluate(beam_size):
 
         # References
         img_caps = allcaps[0].tolist()
-        img_captions = list(
-            map(
-                lambda c: [
-                    rev_word_map[w]
-                    for w in c
-                    if w not in {word_map["<start>"], word_map["<end>"], word_map["<pad>"]}
-                ],
-                img_caps,
-            )
-        )  # remove <start> and pads
-        img_caps = [" ".join(c) for c in img_captions]
-        # print(img_caps)
+        img_caps = tokenizer.batch_decode(img_caps, skip_special_tokens=True)
+
+        # img_captions = list(
+        #     map(
+        #         lambda c: [
+        #             rev_word_map[w]
+        #             for w in c
+        #             if w
+        #             not in {tokenizer.cls_token_id, tokenizer.sep_token_id, tokenizer.pad_token_id}
+        #         ],
+        #         img_caps,
+        #     )
+        # )  # remove <start> and pads
+        # img_caps = [" ".join(c) for c in img_captions]
+
         references.append(img_caps)
 
         # Hypotheses
-        hypothesis = [
-            rev_word_map[w]
-            for w in seq
-            if w not in {word_map["<start>"], word_map["<end>"], word_map["<pad>"]}
-        ]
-        hypothesis = " ".join(hypothesis)
-        # print(hypothesis)
+        hypothesis = tokenizer.decode(seq, skip_special_tokens=True)
         hypotheses.append(hypothesis)
         assert len(references) == len(hypotheses)
 
