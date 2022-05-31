@@ -1,8 +1,6 @@
-from lib2to3.pgen2 import token
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import torchvision.transforms as transforms
 from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
@@ -150,39 +148,45 @@ def evaluate(beam_size):
                 break
             step += 1
 
-        i = complete_seqs_scores.index(max(complete_seqs_scores))
-        seq = complete_seqs[i]
-
+        try:
+            i = complete_seqs_scores.index(max(complete_seqs_scores))
+            seq = complete_seqs[i]
+        except:
+            seq = [2, 22460, 3]
         # References
         img_caps = allcaps[0].tolist()
-        img_caps = tokenizer.batch_decode(img_caps, skip_special_tokens=True)
+        # img_caps = tokenizer.batch_decode(img_caps, skip_special_tokens=True)
 
-        # img_captions = list(
-        #     map(
-        #         lambda c: [
-        #             rev_word_map[w]
-        #             for w in c
-        #             if w
-        #             not in {tokenizer.cls_token_id, tokenizer.sep_token_id, tokenizer.pad_token_id}
-        #         ],
-        #         img_caps,
-        #     )
-        # )  # remove <start> and pads
-        # img_caps = [" ".join(c) for c in img_captions]
+        img_captions = list(
+            map(
+                lambda c: [
+                    w
+                    for w in c
+                    if w
+                    not in {tokenizer.cls_token_id, tokenizer.sep_token_id, tokenizer.pad_token_id}
+                ],
+                img_caps,
+            )
+        )  # remove <start> and pads
 
-        references.append(img_caps)
+        references.append(img_captions)
 
         # Hypotheses
-        hypothesis = tokenizer.decode(seq, skip_special_tokens=True)
+        # hypothesis = tokenizer.decode(seq, skip_special_tokens=True)
+        hypothesis = [
+            w
+            for w in seq
+            if w not in {tokenizer.cls_token_id, tokenizer.sep_token_id, tokenizer.pad_token_id}
+        ]
         hypotheses.append(hypothesis)
         assert len(references) == len(hypotheses)
 
     # Calculate scores
-    metrics_dict = nlgeval.compute_metrics(references, hypotheses)
-    return metrics_dict
+    bleu4 = corpus_bleu(references, hypotheses)
+    return bleu4
 
 
 if __name__ == "__main__":
     beam_size = 5
-    metrics_dict = evaluate(beam_size)
-    print(metrics_dict)
+    metrics = evaluate(beam_size)
+    print(metrics)
