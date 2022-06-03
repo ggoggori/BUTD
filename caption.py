@@ -11,6 +11,7 @@ from feature_extract.utils import Config
 import torch
 import argparse
 import warnings
+import time
 
 warnings.filterwarnings("ignore")
 
@@ -111,6 +112,27 @@ def caption_image_beam_search(image_features, decoder, tokenizer, beam_size=3):
     return decoded_seq
 
 
+def forward_image(image_path):
+    frcnn_cfg = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+    encoder = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnn_cfg).to(
+        device
+    )
+    encoder.eval()
+
+    images, sizes, scales_yx = Preprocess(frcnn_cfg)(image_path)
+    output_dict = encoder(
+        images.to(device),
+        sizes.to(device),
+        scales_yx=scales_yx.to(device),
+        padding="max_detections",
+        max_detections=frcnn_cfg.max_detections,
+        return_tensors="pt",
+    )
+    features = output_dict.get("roi_features")
+
+    return features
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BUTD: generate caption")
 
@@ -124,26 +146,8 @@ if __name__ == "__main__":
     device = torch.device(
         "cuda" if torch.cuda.is_available() else "cpu"
     )  # sets device for model and PyTorch tensors
-    cudnn.benchmark = True  # set to true only if inputs to model are fixed size; otherwise lot of computational overhead
 
     # Load model
-    torch.nn.Module.dump_patches = True
-
-    frcnn_cfg = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-    encoder = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnn_cfg).to(
-        device
-    )
-    images, sizes, scales_yx = Preprocess(frcnn_cfg)(args.img)
-    encoder.eval()
-    output_dict = encoder(
-        images.to(device),
-        sizes.to(device),
-        scales_yx=scales_yx.to(device),
-        padding="max_detections",
-        max_detections=frcnn_cfg.max_detections,
-        return_tensors="pt",
-    )
-    features = output_dict.get("roi_features")
     checkpoint = torch.load(checkpoint_path, map_location=str(device))
     decoder = checkpoint["decoder"]
     decoder = decoder.to(device)
@@ -153,5 +157,8 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("monologg/kobigbird-bert-base")
     vocab_size = tokenizer.vocab_size
 
+    start = time.time()
+
+    features = forward_image(args.img)
     caption = caption_image_beam_search(features, decoder, tokenizer)
     print(caption)
