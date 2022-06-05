@@ -3,7 +3,7 @@ Implementation of "Bottom-Up and Top-Down Attention for Image Captioning and Vis
 
 * https://github.com/poojahira/image-captioning-bottom-up-top-down 코드를 참고
 * AI HUB에서 제공하는 한국어 MS COCO Image Captioning 학습이 가능
-* wordpiece tokenizer 사용
+* SentencePiece tokenizer 사용
 
 
 
