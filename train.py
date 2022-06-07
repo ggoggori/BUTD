@@ -17,7 +17,8 @@ data_name = "5_cap_per_img"  # base name shared by data files
 tokenizer = AutoTokenizer.from_pretrained("monologg/kobigbird-bert-base")
 
 # Model parameters
-emb_dim = 1024  # dimension of word embeddings
+emb_dim = 200  # dimension of word embeddings
+# If use_fasttext is used, emb_dim must be set to 200.
 attention_dim = 1024  # dimension of attention linear layers
 decoder_dim = 1024  # dimension of decoder RNN
 dropout = 0.4
@@ -36,24 +37,24 @@ batch_size = 100
 workers = 1  # for data-loading; right now, only 1 works with h5py
 best_bleu4 = 0.0  # BLEU-4 score right now
 print_freq = 100  # print training/validation stats every __ batches
-checkpoint = (
-    "/opt/ml/input/BUTD/checkpoint_5_cap_per_img.pth.tar"  # path to checkpoint, None if none
-)
+use_fasttext = True
+checkpoint = None  # path to checkpoint, None if none
 
 
 def main():
     """
     Training and validation.
     """
-
-    global best_bleu4, epochs_since_improvement, checkpoint, start_epoch, data_name
+    global best_bleu4, epochs_since_improvement, checkpoint, start_epoch, data_name, use_fasttext
 
     # Initialize / load checkpoint
     if checkpoint is None:
         decoder = DecoderWithAttention(
             attention_dim=attention_dim,
             embed_dim=emb_dim,
+            pretrained_emb=use_fasttext,
             decoder_dim=decoder_dim,
+            vocab=tokenizer.vocab,
             vocab_size=tokenizer.vocab_size,
             dropout=dropout,
         )

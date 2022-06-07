@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torchvision
 from torch.nn.utils.weight_norm import weight_norm
+import gensim
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -57,7 +58,15 @@ class DecoderWithAttention(nn.Module):
     """
 
     def __init__(
-        self, attention_dim, embed_dim, decoder_dim, vocab_size, features_dim=2048, dropout=0.5
+        self,
+        attention_dim,
+        embed_dim,
+        pretrained_emb,
+        decoder_dim,
+        vocab,
+        vocab_size,
+        features_dim=2048,
+        dropout=0.5,
     ):
         """
         :param attention_dim: size of attention network
@@ -78,7 +87,21 @@ class DecoderWithAttention(nn.Module):
 
         self.attention = Attention(features_dim, decoder_dim, attention_dim)  # attention network
 
-        self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
+        if pretrained_emb == True:
+            model = gensim.models.fasttext.load_facebook_model("/opt/ml/input/BUTD/ko.bin")
+            wv = model.wv
+            vectors = wv.vectors
+            word_embeddings = torch.zeros((vocab_size, 200))
+            for index, (key, value) in enumerate(vocab.items()):
+                if wv.key_to_index.get(key) == None:
+                    continue
+                else:
+                    vec = vectors[wv.key_to_index.get(key)]
+                    word_embeddings[value] = torch.FloatTensor(vec)
+            self.embedding = nn.Embedding.from_pretrained(word_embeddings, freeze=False)
+        else:
+            self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
+
         self.dropout = nn.Dropout(p=self.dropout)
         self.top_down_attention = nn.LSTMCell(
             embed_dim + features_dim + decoder_dim, decoder_dim, bias=True
@@ -156,14 +179,15 @@ class DecoderWithAttention(nn.Module):
             h1, c1 = self.top_down_attention(
                 torch.cat(
                     [
-                        h2[:batch_size_t],
-                        image_features_mean[:batch_size_t],
-                        embeddings[:batch_size_t, t, :],
+                        h2[:batch_size_t],  # (batch, 1024)
+                        image_features_mean[:batch_size_t],  # (batch, 2048)
+                        embeddings[:batch_size_t, t, :],  # (batch, 1024)
                     ],
                     dim=1,
-                ),
+                ),  # concat = (batch, 4096)
                 (h1[:batch_size_t], c1[:batch_size_t]),
             )
+
             attention_weighted_encoding = self.attention(
                 image_features[:batch_size_t], h1[:batch_size_t]
             )
