@@ -88,7 +88,7 @@ class DecoderWithAttention(nn.Module):
         self.attention = Attention(features_dim, decoder_dim, attention_dim)  # attention network
 
         if pretrained_emb == True:
-            model = gensim.models.fasttext.load_facebook_model("/opt/ml/input/BUTD/ko.bin")
+            model = gensim.models.fasttext.load_facebook_model("./ko.bin")
             wv = model.wv
             vectors = wv.vectors
             word_embeddings = torch.zeros((vocab_size, 200))
