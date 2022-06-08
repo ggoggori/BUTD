@@ -3,8 +3,12 @@ Implementation of "Bottom-Up and Top-Down Attention for Image Captioning and Vis
 
 * https://github.com/poojahira/image-captioning-bottom-up-top-down 코드를 참고
 * AI HUB에서 제공하는 한국어 MS COCO Image Captioning 학습이 가능
-* SentencePiece tokenizer 사용
 
+### 개선점
+* SentencePiece tokenizer
+* Fasttext embedding
+* BERT Embedding
+* Scheduled sampling
 
 
 ## Structure

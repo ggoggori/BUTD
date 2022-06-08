@@ -1,8 +1,10 @@
+from random import random
 import torch
 from torch import nn
-import torchvision
 from torch.nn.utils.weight_norm import weight_norm
+import torch.nn.functional as F
 import gensim
+import random
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -84,7 +86,6 @@ class DecoderWithAttention(nn.Module):
         self.decoder_dim = decoder_dim
         self.vocab_size = vocab_size
         self.dropout = dropout
-
         self.attention = Attention(features_dim, decoder_dim, attention_dim)  # attention network
 
         if pretrained_emb == True:
@@ -102,6 +103,7 @@ class DecoderWithAttention(nn.Module):
         else:
             self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
 
+        self.epsilon = 1
         self.dropout = nn.Dropout(p=self.dropout)
         self.top_down_attention = nn.LSTMCell(
             embed_dim + features_dim + decoder_dim, decoder_dim, bias=True
@@ -175,13 +177,24 @@ class DecoderWithAttention(nn.Module):
         # features to the attention block. The attention weighed bottom up features and hidden state of the top down attention model
         # are then passed to the language model
         for t in range(max(decode_lengths)):
+            # decode_lengths에는 batch에 존재하는 sequence의 길이가 내림차순으로 담겨있음.
+            # [26,25,25,22,16,,,,,]
+            # 0부터 for문을 돌리면서 하나의 Token 씩 계산을 하기 위해서 batch_size_t를 도입.
+            # 그러니까 만약 18만큼의 길이를 가지는 sequence는 t가 18일 때까지만 아래의 계산에 참여를 하고, 19일 때 부터는 참여 x
             batch_size_t = sum([l > t for l in decode_lengths])
+
+            coin_flip = random.random()  # for Scheduled sampling
+            if coin_flip >= (1 - self.epsilon) or t == 0:
+                word_embedding = embeddings[:batch_size_t, t, :]
+            else:
+                word_embedding = pred_embedding[:batch_size_t, :]
+
             h1, c1 = self.top_down_attention(
                 torch.cat(
                     [
                         h2[:batch_size_t],  # (batch, 1024)
                         image_features_mean[:batch_size_t],  # (batch, 2048)
-                        embeddings[:batch_size_t, t, :],  # (batch, 1024)
+                        word_embedding,  # (batch, 1024)
                     ],
                     dim=1,
                 ),  # concat = (batch, 4096)
@@ -199,5 +212,11 @@ class DecoderWithAttention(nn.Module):
             preds = self.fc(self.dropout(h2))  # (batch_size_t, vocab_size)
             predictions[:batch_size_t, t, :] = preds
             predictions1[:batch_size_t, t, :] = preds1
+
+            # for Scheduled sampling
+            scores = self.fc(h2)  # (s, vocab_size)
+            scores = F.log_softmax(scores, dim=1)
+            next_word = scores.argmax(dim=1)
+            pred_embedding = self.embedding(next_word)
 
         return predictions, predictions1, encoded_captions, decode_lengths, sort_ind

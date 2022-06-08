@@ -17,7 +17,11 @@ data_name = "5_cap_per_img"  # base name shared by data files
 tokenizer = AutoTokenizer.from_pretrained("monologg/kobigbird-bert-base")
 
 # Model parameters
-emb_dim = 200  # dimension of word embeddings
+use_fasttext = False
+if use_fasttext == True:
+    emb_dim = 200
+else:
+    emb_dim = 1024  # dimension of word embeddings
 # If use_fasttext is used, emb_dim must be set to 200.
 attention_dim = 1024  # dimension of attention linear layers
 decoder_dim = 1024  # dimension of decoder RNN
@@ -37,7 +41,7 @@ batch_size = 100
 workers = 1  # for data-loading; right now, only 1 works with h5py
 best_bleu4 = 0.0  # BLEU-4 score right now
 print_freq = 100  # print training/validation stats every __ batches
-use_fasttext = True
+use_fasttext = False
 checkpoint = None  # path to checkpoint, None if none
 
 
@@ -232,6 +236,9 @@ def train(train_loader, decoder, criterion_ce, criterion_dis, decoder_optimizer,
                     top5=top5accs,
                 )
             )
+            print(decoder.epsilon)
+
+        decoder.epsilon = 1 - ((epoch * len(train_loader)) + i) / (len(train_loader) * epochs)
 
 
 def validate(val_loader, decoder, criterion_ce, criterion_dis):
