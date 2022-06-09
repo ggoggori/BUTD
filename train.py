@@ -243,7 +243,7 @@ def train(train_loader, decoder, criterion_ce, criterion_dis, decoder_optimizer,
                     top5=top5accs,
                 )
             )
-            print("Current Epsilon Value is {}").format(decoder.epsilon)
+            print("Current Epsilon Value is {}".format(decoder.epsilon))
         if scheduled_sampling == True:
             decoder.epsilon = 1 - ((epoch * len(train_loader)) + i) / (
                 len(train_loader) * epochs * 2

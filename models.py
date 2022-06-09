@@ -104,7 +104,7 @@ class DecoderWithAttention(nn.Module):
                     vec = vectors[wv.key_to_index.get(key)]
                     word_embeddings[value] = torch.FloatTensor(vec)
             self.embedding = nn.Embedding.from_pretrained(word_embeddings, freeze=False)
-        elif self.bert_model:
+        elif self.bert_model is not None:
             self.embedding = bert_model
         else:
             self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
@@ -131,6 +131,7 @@ class DecoderWithAttention(nn.Module):
             pass
         else:
             self.embedding.weight.data.uniform_(-0.1, 0.1)
+            print("emb layer set uniform")
         self.fc.bias.data.fill_(0)
         self.fc.weight.data.uniform_(-0.1, 0.1)
 
