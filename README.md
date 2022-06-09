@@ -9,9 +9,6 @@ Implementation of "Bottom-Up and Top-Down Attention for Image Captioning and Vis
 * Fasttext embedding - 좋지 않은 성능
 * BERT Embedding - 현재 코드에서는 t시점의 decoding을 진행할 때 Bert Embedding이 t+n 시점도 포함하고 있기 때문에 leakage가 있음.
 * Scheduled sampling - 좋지 않은 성능
-* Fasttext embedding
-* BERT Embedding
-* Scheduled sampling
 ### Future Work
 * Adaptive Attention or Bilinear Attention
 
