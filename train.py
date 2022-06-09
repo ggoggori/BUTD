@@ -2,27 +2,33 @@ import time
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import torchvision.transforms as transforms
 from torch import nn
 from torch.nn.utils.rnn import pack_padded_sequence
 from models import DecoderWithAttention
 from datasets import *
 from utils import *
 from nltk.translate.bleu_score import corpus_bleu
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel
 
 # Data parameters
 data_folder = "./final_dataset"  # folder with data files saved by create_input_files.py
 data_name = "5_cap_per_img"  # base name shared by data files
 tokenizer = AutoTokenizer.from_pretrained("monologg/kobigbird-bert-base")
+bert_model = AutoModel.from_pretrained("monologg/kobigbird-bert-base")
 
 # Model parameters
+scheduled_sampling = False
 use_fasttext = False
+assert not all([use_fasttext == True, bert_model is not None])
+# you have to use only one option(fasttext or bert)
+
 if use_fasttext == True:
-    emb_dim = 200
+    emb_dim = 200  # If use_fasttext is used, emb_dim must be set to 200.
+elif bert_model is not None:
+    emb_dim = 768
 else:
     emb_dim = 1024  # dimension of word embeddings
-# If use_fasttext is used, emb_dim must be set to 200.
+
 attention_dim = 1024  # dimension of attention linear layers
 decoder_dim = 1024  # dimension of decoder RNN
 dropout = 0.4
@@ -49,7 +55,7 @@ def main():
     """
     Training and validation.
     """
-    global best_bleu4, epochs_since_improvement, checkpoint, start_epoch, data_name, use_fasttext
+    global best_bleu4, epochs_since_improvement, checkpoint, start_epoch, data_name, use_fasttext, scheduled_sampling
 
     # Initialize / load checkpoint
     if checkpoint is None:
@@ -58,6 +64,7 @@ def main():
             embed_dim=emb_dim,
             pretrained_emb=use_fasttext,
             decoder_dim=decoder_dim,
+            bert_model=bert_model,
             vocab=tokenizer.vocab,
             vocab_size=tokenizer.vocab_size,
             dropout=dropout,
@@ -236,10 +243,12 @@ def train(train_loader, decoder, criterion_ce, criterion_dis, decoder_optimizer,
                     top5=top5accs,
                 )
             )
-            print(decoder.epsilon)
-
-        decoder.epsilon = 1 - ((epoch * len(train_loader)) + i) / (len(train_loader) * epochs * 2)
-        # linear decay(minimum 0.5)
+            print("Current Epsilon Value is {}").format(decoder.epsilon)
+        if scheduled_sampling == True:
+            decoder.epsilon = 1 - ((epoch * len(train_loader)) + i) / (
+                len(train_loader) * epochs * 2
+            )
+            # linear decay(minimum 0.5)
 
 
 def validate(val_loader, decoder, criterion_ce, criterion_dis):

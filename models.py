@@ -1,3 +1,4 @@
+from multiprocessing.sharedctypes import Value
 from random import random
 import torch
 from torch import nn
@@ -65,6 +66,7 @@ class DecoderWithAttention(nn.Module):
         embed_dim,
         pretrained_emb,
         decoder_dim,
+        bert_model,
         vocab,
         vocab_size,
         features_dim=2048,
@@ -86,9 +88,11 @@ class DecoderWithAttention(nn.Module):
         self.decoder_dim = decoder_dim
         self.vocab_size = vocab_size
         self.dropout = dropout
+        self.pretrained_emb = pretrained_emb
+        self.bert_model = bert_model
         self.attention = Attention(features_dim, decoder_dim, attention_dim)  # attention network
 
-        if pretrained_emb == True:
+        if self.pretrained_emb == True:
             model = gensim.models.fasttext.load_facebook_model("./ko.bin")
             wv = model.wv
             vectors = wv.vectors
@@ -100,6 +104,8 @@ class DecoderWithAttention(nn.Module):
                     vec = vectors[wv.key_to_index.get(key)]
                     word_embeddings[value] = torch.FloatTensor(vec)
             self.embedding = nn.Embedding.from_pretrained(word_embeddings, freeze=False)
+        elif self.bert_model:
+            self.embedding = bert_model
         else:
             self.embedding = nn.Embedding(vocab_size, embed_dim)  # embedding layer
 
@@ -121,7 +127,10 @@ class DecoderWithAttention(nn.Module):
         """
         Initializes some parameters with values from the uniform distribution, for easier convergence.
         """
-        self.embedding.weight.data.uniform_(-0.1, 0.1)
+        if self.pretrained_emb == True or self.bert_model is not None:
+            pass
+        else:
+            self.embedding.weight.data.uniform_(-0.1, 0.1)
         self.fc.bias.data.fill_(0)
         self.fc.weight.data.uniform_(-0.1, 0.1)
 
@@ -159,7 +168,15 @@ class DecoderWithAttention(nn.Module):
         encoded_captions = encoded_captions[sort_ind]
 
         # Embedding
-        embeddings = self.embedding(encoded_captions)  # (batch_size, max_caption_length, embed_dim)
+        if self.bert_model is None:
+            embeddings = self.embedding(
+                encoded_captions
+            )  # (batch_size, max_caption_length, embed_dim)
+        else:
+            embeddings = self.embedding(
+                encoded_captions
+            ).last_hidden_state  # (batch_size, max_caption_length, embed_dim)
+
         # Initialize LSTM state
         h1, c1 = self.init_hidden_state(batch_size)  # (batch_size, decoder_dim)
         h2, c2 = self.init_hidden_state(batch_size)  # (batch_size, decoder_dim)
@@ -219,6 +236,9 @@ class DecoderWithAttention(nn.Module):
             scores = self.fc(h2)  # (s, vocab_size)
             scores = F.log_softmax(scores, dim=1)
             next_word = scores.argmax(dim=1)
-            pred_embedding = self.embedding(next_word)
+            if self.bert_model is None:
+                pred_embedding = self.embedding(next_word)
+            else:
+                pred_embedding = self.embedding(next_word.unsqueeze(1)).last_hidden_state
 
         return predictions, predictions1, encoded_captions, decode_lengths, sort_ind

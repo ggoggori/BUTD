@@ -11,7 +11,7 @@ from transformers import AutoTokenizer
 # Parameters
 data_folder = "final_dataset"  # folder with data files saved by create_input_files.py
 data_name = "5_cap_per_img"  # base name shared by data files
-checkpoint_file = "/opt/ml/input/BUTD/checkpoint_5_cap_per_img.pth.tar"  # model checkpoint
+checkpoint_file = "/opt/ml/input/BUTD/BEST_checkpoint_5_cap_per_img.pth.tar"  # model checkpoint
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
 )  # sets device for model and PyTorch tensors
