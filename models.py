@@ -4,7 +4,7 @@ from torch import nn
 from torch.nn.utils.weight_norm import weight_norm
 import torch.nn.functional as F
 import gensim
-import random
+from numpy.random import choice
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -183,8 +183,10 @@ class DecoderWithAttention(nn.Module):
             # 그러니까 만약 18만큼의 길이를 가지는 sequence는 t가 18일 때까지만 아래의 계산에 참여를 하고, 19일 때 부터는 참여 x
             batch_size_t = sum([l > t for l in decode_lengths])
 
-            coin_flip = random.random()  # for Scheduled sampling
-            if coin_flip >= (1 - self.epsilon) or t == 0:
+            coin_flip = choice(
+                [True, False], 1, p=[self.epsilon, 1 - self.epsilon]
+            )  # for Scheduled sampling
+            if coin_flip == True or t == 0:
                 word_embedding = embeddings[:batch_size_t, t, :]
             else:
                 word_embedding = pred_embedding[:batch_size_t, :]

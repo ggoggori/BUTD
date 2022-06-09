@@ -238,7 +238,8 @@ def train(train_loader, decoder, criterion_ce, criterion_dis, decoder_optimizer,
             )
             print(decoder.epsilon)
 
-        decoder.epsilon = 1 - ((epoch * len(train_loader)) + i) / (len(train_loader) * epochs)
+        decoder.epsilon = 1 - ((epoch * len(train_loader)) + i) / (len(train_loader) * epochs * 2)
+        # linear decay(minimum 0.5)
 
 
 def validate(val_loader, decoder, criterion_ce, criterion_dis):
