@@ -9,6 +9,8 @@ Implementation of "Bottom-Up and Top-Down Attention for Image Captioning and Vis
 * Fasttext embedding
 * BERT Embedding
 * Scheduled sampling
+### Future Work
+* Adaptive Attention or Bilinear Attention
 
 
 ## Structure
